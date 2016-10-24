@@ -27,15 +27,17 @@ __docformat__ = 'restructedtext en'
 import os
 import sys
 import timeit
+import gzip
+import pickle
 
 import numpy
+import cPickle
 
 import theano
 import theano.tensor as T
 
 
 from logistic_sgd import LogisticRegression, load_data
-
 
 # start-snippet-1
 class HiddenLayer(object):
@@ -199,7 +201,7 @@ class MLP(object):
 
 
 def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
-             dataset='mnist.pkl.gz', batch_size=20, n_hidden=500):
+             dataset='../data/k_mnist.pkl.gz', batch_size=20, n_hidden=500):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -392,6 +394,10 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
                            'best model %f %%') %
                           (epoch, minibatch_index + 1, n_train_batches,
                            test_score * 100.))
+		    with open('../data/mlp_model.pkl', 'wb') as f:
+		        cPickle.dump((classifier.params, classifier.logRegressionLayer.y_pred, 
+			                 classifier.input), f)
+
 
             if patience <= iter:
                 done_looping = True
@@ -405,6 +411,42 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
            os.path.split(__file__)[1] +
            ' ran for %.2fm' % ((end_time - start_time) / 60.)), file=sys.stderr)
 
+def predict(dataset, n_hidden, n_in, n_out):
+    datasets = load_data(dataset)
+    test_set_x, test_set_y = datasets[2]
+    test_set_x = test_set_x.get_value()
+    test_set_y = test_set_y.eval()
 
+    x = T.matrix('x')  # the data is presented as rasterized images
+    y = T.ivector('y')  # the labels are presented as 1D vector of
+                        # [int] labels
+
+    rng = numpy.random.RandomState(1234)
+
+    # construct the MLP class
+    classifier = MLP(
+        rng=rng,
+        input=x,
+        n_in=28 * 28,
+        n_hidden=n_hidden,
+        n_out=10
+    )
+
+    classifier.params, classifier.logRegressionLayer.y_pred, classifier.input = cPickle.load(open('mlp_model.pkl'))
+    predict_model = theano.function(inputs=[classifier.input], outputs=classifier.logRegressionLayer.y_pred)
+
+    with gzip.open('../data/kaggle_test.pkl.gz', 'rb') as f:
+        test_data = pickle.load(f)
+
+    predicted_values = predict_model(test_data/255)
+
+    result = numpy.vstack((numpy.arange(predicted_values.shape[0])+1,predicted_values))
+
+    res = result.T
+
+    import csv
+    numpy.savetxt("../data/result_mlp.csv",res,fmt=('%d','%d'),delimiter=',',header='ImageId,Label')
+    
 if __name__ == '__main__':
     test_mlp()
+    #predict('../data/k_mnist.pkl.gz',500,28*28,10)

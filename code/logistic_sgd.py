@@ -254,7 +254,7 @@ def load_data(dataset):
 
 
 def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
-                           dataset='mnist.pkl.gz',
+                           dataset='../data/k_mnist.pkl.gz',
                            batch_size=600):
     """
     Demonstrate stochastic gradient descent optimization of a log-linear
@@ -424,7 +424,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
                     )
 
                     # save the best model
-                    with open('best_model.pkl', 'wb') as f:
+                    with open('../data/lr_best_model.pkl', 'wb') as f:
                         pickle.dump(classifier, f)
 
             if patience <= iter:
@@ -453,7 +453,7 @@ def predict():
     """
 
     # load the saved model
-    classifier = pickle.load(open('best_model.pkl'))
+    classifier = pickle.load(open('../data/lr_best_model.pkl'))
 
     # compile a predictor function
     predict_model = theano.function(
@@ -471,5 +471,33 @@ def predict():
     print(predicted_values)
 
 
+def predict_new():
+    """
+    An example of how to load a trained model and use it
+    to predict labels.
+    """
+
+    # load the saved model
+    classifier = pickle.load(open('../data/lr_best_model.pkl'))
+
+    # compile a predictor function
+    predict_model = theano.function(
+        inputs=[classifier.input],
+        outputs=classifier.y_pred)
+
+    # We can test it on some examples from test test
+    with gzip.open('../data/kaggle_test.pkl.gz', 'rb') as f:
+        test_data = pickle.load(f)
+
+    predicted_values = predict_model(test_data/255)
+
+    result = numpy.vstack((numpy.arange(predicted_values.shape[0])+1,predicted_values))
+
+    res = result.T
+
+    import csv
+    numpy.savetxt("../data/result_lr.csv",res,fmt=('%d','%d'),delimiter=',',header='ImageId,Label')
+
 if __name__ == '__main__':
-    sgd_optimization_mnist()
+    #sgd_optimization_mnist()
+    predict_new()

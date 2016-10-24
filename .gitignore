@@ -9,6 +9,8 @@ data/mnist_py3k.pkl.gz
 data/Nottingham.zip
 data/Nottingham
 data/midi.zip
+data/*.pkl.gz
+data/*.pkl
 html
 *.pyc
 *~
