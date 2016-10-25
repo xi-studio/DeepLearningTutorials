@@ -432,7 +432,7 @@ def predict(dataset, n_hidden, n_in, n_out):
         n_out=10
     )
 
-    classifier.params, classifier.logRegressionLayer.y_pred, classifier.input = cPickle.load(open('mlp_model.pkl'))
+    classifier.params, classifier.logRegressionLayer.y_pred, classifier.input = cPickle.load(open('../data/mlp_model.pkl'))
     predict_model = theano.function(inputs=[classifier.input], outputs=classifier.logRegressionLayer.y_pred)
 
     with gzip.open('../data/kaggle_test.pkl.gz', 'rb') as f:
@@ -448,5 +448,5 @@ def predict(dataset, n_hidden, n_in, n_out):
     numpy.savetxt("../data/result_mlp.csv",res,fmt=('%d','%d'),delimiter=',',header='ImageId,Label')
     
 if __name__ == '__main__':
-    test_mlp()
-    #predict('../data/k_mnist.pkl.gz',500,28*28,10)
+    #test_mlp()
+    predict('../data/k_mnist.pkl.gz',500,28*28,10)

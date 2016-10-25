@@ -29,6 +29,8 @@ import sys
 import timeit
 
 import numpy
+import gzip
+import cPickle
 
 import theano
 import theano.tensor as T
@@ -118,7 +120,7 @@ class LeNetConvPoolLayer(object):
 
 
 def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
-                    dataset='mnist.pkl.gz',
+                    dataset='../data/mnist.pkl.gz',
                     nkerns=[20, 50], batch_size=500):
     """ Demonstrates lenet on MNIST dataset
 
@@ -327,6 +329,8 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
                            'best model %f %%') %
                           (epoch, minibatch_index + 1, n_train_batches,
                            test_score * 100.))
+                    with gzip.open('../data/cnn_model.pkl.gz', 'w') as f:
+                        cPickle.dump([layer0_input, layer0, layer1, layer2_input, layer2, layer3], f)
 
             if patience <= iter:
                 done_looping = True
@@ -341,8 +345,53 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
            os.path.split(__file__)[1] +
            ' ran for %.2fm' % ((end_time - start_time) / 60.)), file=sys.stderr)
 
+def predict(model = "../data/cnn_model.pkl.gz",
+            testset = '../data/mnist.pkl.gz',
+            batch_size = 500):
+    classifiers = cPickle.load(gzip.open(model))
+    layer0_input = classifiers[0]
+    layer0 = classifiers[1]
+    layer1 = classifiers[2]
+    layer2_input = classifiers[3]
+    layer2 = classifiers[4]
+    layer3 = classifiers[5]
+    
+    
+    index = T.lscalar()
+    predict_model = theano.function(
+        [layer0_input],
+        layer3.y_pred,
+    )
+
+
+    with gzip.open('../data/kaggle_test.pkl.gz', 'rb') as f:
+        test_data = cPickle.load(f)
+   
+    test_data = test_data/255
+    
+    predicted_base = numpy.zeros(test_data.shape[0])
+
+    for x in range(test_data.shape[0]/batch_size):
+        print("Piesce:",x)
+        predicted_base[x*batch_size:(x+1)*batch_size] = predict_model(test_data[x*batch_size:(x+1)*batch_size].reshape((batch_size,1,28,28)))
+
+    print(predicted_base)
+    result = numpy.vstack((numpy.arange(predicted_base.shape[0])+1,predicted_base))
+
+    res = result.T
+
+    import csv
+    numpy.savetxt("../data/result_cnn.csv",res,fmt=('%d','%d'),delimiter=',',header='ImageId,Label')
+    #datasets = load_data(testset)
+    #test_set_x, test_set_y = datasets[2]
+    #test_set = test_set_x.get_value(borrow=True)
+   
+    #predicted_values = predict_model(test_set[:batch_size].reshape((batch_size,1,28,28))) 
+    #pred = test_set_y.eval()
+    #print(pred[:batch_size] - predicted_values)
 if __name__ == '__main__':
-    evaluate_lenet5()
+    #evaluate_lenet5()
+    predict()
 
 
 def experiment(state, channel):
