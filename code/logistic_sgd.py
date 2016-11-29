@@ -469,6 +469,7 @@ def predict():
     predicted_values = predict_model(test_set_x[:10])
     print("Predicted values for the first 10 examples in test set:")
     print(predicted_values)
+    print(test_set_y.eval())
 
 
 def predict_new():
@@ -500,4 +501,5 @@ def predict_new():
 
 if __name__ == '__main__':
     #sgd_optimization_mnist()
-    predict_new()
+    #predict_new()
+    predict()

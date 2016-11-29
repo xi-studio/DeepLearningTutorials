@@ -34,6 +34,7 @@ References:
 """
 
 from __future__ import print_function
+from sklearn.metrics import confusion_matrix
 
 __docformat__ = 'restructedtext en'
 
@@ -172,9 +173,11 @@ class LogisticRegression(object):
         else:
             raise NotImplementedError()
 
+    def show(self,y):
+        return self.y_pred,y
 
-def load_data():
 
+def get_data():
     datalist = {'blues':0,
                 'classical':1,
     	    'country':2,
@@ -187,37 +190,120 @@ def load_data():
     	    'rock':9
                }
     
-    res = glob.glob("../data/musice_set/*.pkl.gz")
+    #base = numpy.zeros((10,100,540*540),dtype=numpy.uint8)
+    base = numpy.zeros((10,100,540*540))
+    target = numpy.outer(numpy.arange(10),numpy.ones(100))
     
-    length = len(res)
-    base = numpy.zeros((length,690*540),dtype=numpy.uint8)
-    target = numpy.zeros(length)
-    num = 0
-    for x in res:
-	print(x)
-        name = x.split("/")[-1]
-	print(name)
-        value = datalist[name.split(".")[0]]
-        with gzip.open(x,'rb') as f:
-            data = cPickle.load(f)
-    	    res = data[:690,:540].reshape(690*540)
-    
-    	    base[num,:] = res
-    	    target[num] = value
-    	    num = num + 1
-    	    print(num)
-    base = base.reshape((10,100,690*540)) 
-    target = target.reshape((10,100))
-    #numpy.random.shuffle(index)
+    for setname in datalist:
+        res = glob.glob("../data/musice_set/"+setname+"*.pkl.gz")
+        #res = glob.glob("../data/music_data_set/"+setname+"*.pkl.gz")
+        num = 0
+        for x in res:
+            name = x.split("/")[-1]
+            value = datalist[name.split(".")[0]]
+            with gzip.open(x,'rb') as f:
+                data = cPickle.load(f)
+                res = data[:540,:540].reshape(540*540)
+                base[value,num,:] = res
+                num = num + 1
 
+    #numpy.random.shuffle(index)
     #base = base/10.0
-    train_set = (base[:,:10,:].reshape((10*10,690*540)),target[:,:10].reshape(10*10))
-    test_set = (base[:,90:100,:].reshape((10*10,690*540)),target[:,90:100].reshape(10*10))
-    valid_set = (base[:,90:100,:].reshape((10*10,690*540)),target[:,90:100].reshape(10*10))
+    trS = 60
+    teS = 40
+    train_set = (base[:,:trS,:].reshape((10*trS,540*540)),target[:,:trS].reshape(10*trS))
+    test_set = (base[:,(100-teS):100,:].reshape((10*teS,540*540)),target[:,(100-teS):100].reshape(10*teS))
+    valid_set = (base[:,(100-teS):100,:].reshape((10*teS,540*540)),target[:,(100-teS):100].reshape(10*teS))
     
     
     print(train_set[0].shape,train_set[1])
+    return train_set,test_set,valid_set
 
+def get_data_by_two():
+    datalist = {'blues':0,
+                'classical':1,
+#    	    'country':2,
+#    	    'disco':3,
+#    	    'hiphop':4,
+#    	    'jazz':5,
+#    	    'metal':6,
+#    	    'pop':7,
+#    	    'reggae':8,
+#    	    'rock':9
+               }
+    
+    genres = 2
+    width = 676
+    height = 540
+    base = numpy.zeros((genres,100,height,width),dtype=numpy.uint8)
+    target = numpy.outer(numpy.arange(genres),numpy.ones(height*100))
+    
+    for setname in datalist:
+        res = glob.glob("../data/musice_set/"+setname+"*.pkl.gz")
+        #res = glob.glob("../data/music_data_set/"+setname+"*.pkl.gz")
+        num = 0
+        for x in res:
+            name = x.split("/")[-1]
+            value = datalist[name.split(".")[0]]
+            with gzip.open(x,'rb') as f:
+                data = cPickle.load(f)
+                res = data[:width,:height].T
+                base[value,num,:] = res
+                num = num + 1
+    trS = 60
+    teS = 40
+    train_set = (base[:,:trS,:].reshape((genres * trS * height,width)),target[:,:trS*height].reshape(genres * trS * height))
+    test_set = (base[:,(100-teS):100,:].reshape((genres * teS * height,width)),target[:,(100-teS)*height:100*height].reshape(genres * teS* height))
+    valid_set = test_set 
+    
+    print(train_set[0].shape,train_set[1].shape)
+    print(test_set[0].shape,test_set[1].shape)
+    return train_set,test_set,valid_set
+
+def get_data_by_min():
+    datalist = {'blues':0,
+                'classical':1,
+    	    'country':2,
+    	    'disco':3,
+    	    'hiphop':4,
+    	    'jazz':5,
+    	    'metal':6,
+    	    'pop':7,
+    	    'reggae':8,
+    	    'rock':9
+               }
+    
+    base = numpy.zeros((10,100,540,540),dtype=numpy.uint8)
+    target = numpy.outer(numpy.arange(10),numpy.ones(1000*10))
+    
+    for setname in datalist:
+        res = glob.glob("../data/musice_set/"+setname+"*.pkl.gz")
+        num = 0
+        for x in res:
+            name = x.split("/")[-1]
+            value = datalist[name.split(".")[0]]
+            with gzip.open(x,'rb') as f:
+                data = cPickle.load(f)
+                res = data[:540,:540].T
+                base[value,num,:] = res
+                num = num + 1
+
+    trS = 60
+    teS = 40
+    train_set = (base[:,:trS,:,:].reshape((10*trS*100,54*54)),target[:,:trS*100].reshape(10*trS*100))
+    test_set = (base[:,(100-teS):100,:,:].reshape((10*teS*100,54*54)),target[:,(100-teS)*100:100*100].reshape(10*teS*100))
+    valid_set = (base[:,(100-teS):100,:,:].reshape((10*teS*100,54*54)),target[:,(100-teS)*100:100*100].reshape(10*teS*100))
+    
+    
+    print(train_set[0].shape,train_set[1].shape)
+    print(test_set[0].shape,test_set[1].shape)
+    print(valid_set[0].shape,valid_set[1].shape)
+    return train_set,test_set,valid_set
+
+def load_data():
+    train_set,test_set,valid_set = get_data_by_two()
+    #train_set,test_set,valid_set = get_data()
+    #train_set,test_set,valid_set = get_data_by_min()
 
     def shared_dataset(data_xy, borrow=True):
         """ Function that loads the dataset into shared variables
@@ -255,7 +341,7 @@ def load_data():
 
 def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
                            dataset='../data/music_set.pkl.gz',
-                           batch_size=1):
+                           batch_size=10,lr_in=540*540,lr_out=10):
 
     datasets = load_data()
 
@@ -283,7 +369,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
 
     # construct the logistic regression class
     # Each MNIST image has size 28*28
-    classifier = LogisticRegression(input=x, n_in= 690*540, n_out=10)
+    classifier = LogisticRegression(input=x, n_in= lr_in, n_out= lr_out)
 
     # the cost we minimize during training is the negative log likelihood of
     # the model in symbolic format
@@ -308,6 +394,16 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
             y: valid_set_y[index * batch_size: (index + 1) * batch_size]
         }
     )
+
+    show_model = theano.function(
+        inputs=[index],
+        outputs=classifier.show(y),
+        givens={
+            x: valid_set_x[index * batch_size: (index + 1) * batch_size],
+            y: valid_set_y[index * batch_size: (index + 1) * batch_size]
+        }
+    )
+
 
     # compute the gradient of cost with respect to theta = (W,b)
     g_W = T.grad(cost=cost, wrt=classifier.W)
@@ -338,7 +434,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     ###############
     print('... training the model')
     # early-stopping parameters
-    patience = 50000  # look as this many examples regardless
+    patience = 5000  # look as this many examples regardless
     patience_increase = 2  # wait this much longer when a new best is
                                   # found
     improvement_threshold = 0.995  # a relative improvement of this much is
@@ -367,6 +463,8 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
                 # compute zero-one loss on validation set
                 validation_losses = [validate_model(i)
                                      for i in range(n_valid_batches)]
+                #for i in range(n_valid_batches):
+                #    print(show_model(i))
                 this_validation_loss = numpy.mean(validation_losses)
 
                 print(
@@ -407,8 +505,8 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
                     )
 
                     # save the best model
-                    with open('../data/lr_music_model.pkl', 'wb') as f:
-                        cPickle.dump(classifier, f)
+                    #with open('../data/lr_music_model.pkl', 'wb') as f:
+                    #    cPickle.dump(classifier, f)
 
             if patience <= iter:
                 done_looping = True
@@ -436,7 +534,7 @@ def predict():
     """
 
     # load the saved model
-    classifier = cPickle.load(open('../data/lr_best_model.pkl'))
+    classifier = cPickle.load(open('../data/lr_music_model.pkl'))
 
     # compile a predictor function
     predict_model = theano.function(
@@ -444,16 +542,21 @@ def predict():
         outputs=classifier.y_pred)
 
     # We can test it on some examples from test test
-    dataset='mnist.pkl.gz'
-    datasets = load_data(dataset)
+    datasets = load_data()
     test_set_x, test_set_y = datasets[2]
     test_set_x = test_set_x.get_value()
 
-    predicted_values = predict_model(test_set_x[:10])
+    predicted_values = predict_model(test_set_x)
     print("Predicted values for the first 10 examples in test set:")
     print(predicted_values)
+    print(test_set_y.eval())
+    print(confusion_matrix(predicted_values,test_set_y.eval())) 
 
 
 if __name__ == '__main__':
-    sgd_optimization_mnist()
+    sgd_optimization_mnist(lr_in = 676,lr_out=2,batch_size=500)
     #load_data()
+    #predict()
+    #sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
+    #                      dataset='',batch_size=100,
+    #                      lr_in = 54*54,lr_out=10)
