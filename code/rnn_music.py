@@ -22,17 +22,6 @@ sys.setrecursionlimit(1500)
 
 
 # utils functions
-def rollarray(ls):
-    ls = np.append(ls,0)
-    base = []
-    for x in range(7):
-        base.append(np.roll(ls,-x))
-    res = np.array(base).reshape(7,len(ls))
-    res = res.T
-    lex = res[:-7]
-    pred = res[1:-6] 
-    return lex,pred
-
 def shuffle(lol, seed):
     '''
     lol :: list of list as input
@@ -72,27 +61,10 @@ def contextwin(l, win):
 def load_data(filename):
     f = gzip.open(filename, 'rb')
     squence = cPickle.load(f)
-    y = []
-    x_set = np.ones((1,7))
-    y_set = np.ones((1,7))
-    for data in squence:
-	res_x,res_y = rollarray(data)
-	x_set = np.append(x_set,res_x,axis=0)
-	y_set = np.append(y_set,res_y,axis=0)
-    
-    x_set = x_set.astype(np.int16)
-    y_set = y_set.astype(np.int16)
-    index = int(np.ceil(x_set.shape[0]*0.8))
-    train_set, test_set = (x_set[1:index],y_set[1:index]),(x_set[index:],y_set[index:]) 
-    return train_set, test_set
-
-def load_data_new(filename):
-    f = gzip.open(filename, 'rb')
-    squence = cPickle.load(f)
-    x_set = np.ones((1,7))
+    x_set = np.ones((1,11))
     y_set = np.ones(1)
     for data in squence:
-        res = contextwin(data,7)
+        res = contextwin(data,11)
         x_set = np.append(x_set,res[:-1],axis=0)
         y_set = np.append(y_set,data[1:])
     
@@ -102,8 +74,6 @@ def load_data_new(filename):
     train_set, test_set = (x_set[1:index],y_set[1:index]),(x_set[index:],y_set[index:]) 
     train_set, test_set = (x_set[1:index],y_set[1:index]),(x_set[index:],y_set[index:]) 
     return train_set, test_set
-
-
 
 
 
@@ -226,7 +196,7 @@ def main(param=None):
             'verbose': 1,
             'decay': True,
             # decay on the learning rate if improvement stops
-            'win': 7,
+            'win': 11,
             # number of words in the context window
             'nhidden': 200,
             # number of hidden units
@@ -241,7 +211,7 @@ def main(param=None):
 
     folder = './rnnmidi/'
     # load the dataset
-    train_set, test_set = load_data_new("../data/line_midi/base_squence.pkl.gz")
+    train_set, test_set = load_data("../data/line_midi/base_squence.pkl.gz")
 
     train_lex, train_y = train_set
     test_lex,  test_y = test_set
@@ -262,10 +232,11 @@ def main(param=None):
     # train with early stopping on validation set
     best_f1 = -numpy.inf
     param['clr'] = param['lr']
+    shuffle([train_lex, train_y], param['seed'])
+    shuffle([test_lex, test_y], param['seed'])
     for e in range(param['nepochs']):
 
         # shuffle
-        shuffle([train_lex, train_y], param['seed'])
 
         param['ce'] = e
         tic = timeit.default_timer()
@@ -354,12 +325,12 @@ def predict(param=None):
     lex,cl = train_set 
 
     steps = 100
-    x = lex[5]
+    x = lex[10]
     res = []
     for num in range(steps):
         y = rnn.classify([x]).astype('int32')
-	print('pred',y)
-	print('fact',cl[num])
+#	print('pred',y)
+#	print('fact',cl[num])
 	x = np.append(x,y[-1])
 	x = np.delete(x,0)
 	#print(x)

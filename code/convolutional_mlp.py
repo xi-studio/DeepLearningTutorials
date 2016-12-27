@@ -390,8 +390,8 @@ def predict(model = "../data/cnn_model.pkl.gz",
     #pred = test_set_y.eval()
     #print(pred[:batch_size] - predicted_values)
 if __name__ == '__main__':
-    #evaluate_lenet5()
-    predict()
+    evaluate_lenet5()
+    #predict()
 
 
 def experiment(state, channel):

@@ -49,6 +49,7 @@ import theano
 import theano.tensor as T
 
 
+
 class LogisticRegression(object):
     """Multi-class Logistic Regression Class
 
@@ -114,6 +115,8 @@ class LogisticRegression(object):
 
         # keep track of model input
         self.input = input
+    def get_params(self,):
+        return self.params
 
     def negative_log_likelihood(self, y):
         """Return the mean of the negative log-likelihood of the prediction
@@ -210,8 +213,14 @@ def load_data(dataset):
     with gzip.open(dataset, 'rb') as f:
         try:
             train_set, valid_set, test_set = pickle.load(f, encoding='latin1')
+            train_set = (train_set[0]>0*1,train_set[1])
+            valid_set = (valid_set[0]>0*1,valid_set[1])
+            test_set = (test_set[0]>0*1,test_set[1])
         except:
             train_set, valid_set, test_set = pickle.load(f)
+            train_set = (train_set[0]>0*1,train_set[1])
+            valid_set = (valid_set[0]>0*1,valid_set[1])
+            test_set = (test_set[0]>0*1,test_set[1])
     # train_set, valid_set, test_set format: tuple(input, target)
     # input is a numpy.ndarray of 2 dimensions (a matrix)
     # where each row corresponds to an example. target is a
@@ -254,7 +263,7 @@ def load_data(dataset):
 
 
 def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
-                           dataset='../data/k_mnist.pkl.gz',
+                           dataset='../data/mnist.pkl.gz',
                            batch_size=600):
     """
     Demonstrate stochastic gradient descent optimization of a log-linear
@@ -466,7 +475,8 @@ def predict():
     test_set_x, test_set_y = datasets[2]
     test_set_x = test_set_x.get_value()
 
-    predicted_values = predict_model(test_set_x[:10])
+    predicted_values = predict_model(test_set_x[:10]>0*1)
+    print(test_set_x[1].reshape((28,28)))
     print("Predicted values for the first 10 examples in test set:")
     print(predicted_values)
     print(test_set_y.eval())
@@ -499,7 +509,55 @@ def predict_new():
     import csv
     numpy.savetxt("../data/result_lr.csv",res,fmt=('%d','%d'),delimiter=',',header='ImageId,Label')
 
+
+def generate():
+    classifier = pickle.load(open('../data/lr_best_model.pkl'))
+    weight = classifier.W.get_value()
+    print(weight.shape)
+    x = numpy.random.randn(10)
+    x = numpy.ones(10)
+    res = numpy.dot(weight,x)
+    res = res>0*1
+
+    #res = numpy.random.randint(size=28*28,low=0,high=2) 
+    return res
+
+def judge():
+    """
+    An example of how to load a trained model and use it
+    to predict labels.
+    """
+
+    # load the saved model
+    classifier = pickle.load(open('../data/lr_best_model.pkl'))
+
+    # compile a predictor function
+    predict_model = theano.function(
+        inputs=[classifier.input],
+        outputs=classifier.y_pred)
+
+    # We can test it on some examples from test test
+    dataset='mnist.pkl.gz'
+    datasets = load_data(dataset)
+    test_set_x, test_set_y = datasets[2]
+    test_set_x = test_set_x.get_value()
+
+    res = generate()
+    similar = numpy.min(numpy.sum(test_set_x - res,axis=1))
+    print(similar)
+    
+
+    predicted_values = predict_model([res])
+    print(res)
+    print("Predicted values for the first 10 examples in test set:")
+    print(predicted_values)
+
+    import matplotlib.pyplot as plt
+    plt.imshow(res.reshape((28,28)))
+    plt.show()
+
 if __name__ == '__main__':
     #sgd_optimization_mnist()
     #predict_new()
-    predict()
+    #predict()
+    judge()
