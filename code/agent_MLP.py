@@ -12,8 +12,7 @@ def io2food(xi):
 
 def eat(food_p):
     portion = np.zeros((N,Tent))
-    portion = food_p 
-    np.random.shuffle(portion)
+    portion = food_p[:Tent*N].reshape((N,Tent))
     W = np.random.choice([0,1],(N,Tent))
     b = np.zeros(N)
     
@@ -21,12 +20,18 @@ def eat(food_p):
     res = (res>0)*1
     return np.sum(res)>N/2
 
+
+def run(food_p,iters=1000):
+    num = 0
+    for x in range(iters):
+        num +=eat(food_p)
+    return num
+    
+
 if __name__ == '__main__':
     xi = np.array([0,0,1])
     food = io2food(xi)
-    food_p = (food.reshape(Mes * Mass))[:Tent*N].reshape((N,Tent))
-    print food_p
-    num = 0
+    food_p = (food.reshape(Mes * Mass))
     for x in range(100):
-        num += eat(food_p) 
-    print num
+        np.random.shuffle(food_p)
+        print run(food_p)
