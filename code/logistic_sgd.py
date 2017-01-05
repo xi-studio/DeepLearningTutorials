@@ -213,14 +213,8 @@ def load_data(dataset):
     with gzip.open(dataset, 'rb') as f:
         try:
             train_set, valid_set, test_set = pickle.load(f, encoding='latin1')
-            train_set = (train_set[0]>0*1,train_set[1])
-            valid_set = (valid_set[0]>0*1,valid_set[1])
-            test_set = (test_set[0]>0*1,test_set[1])
         except:
             train_set, valid_set, test_set = pickle.load(f)
-            train_set = (train_set[0]>0*1,train_set[1])
-            valid_set = (valid_set[0]>0*1,valid_set[1])
-            test_set = (test_set[0]>0*1,test_set[1])
     # train_set, valid_set, test_set format: tuple(input, target)
     # input is a numpy.ndarray of 2 dimensions (a matrix)
     # where each row corresponds to an example. target is a

@@ -95,7 +95,7 @@ class LogisticRegression(object):
             raise NotImplementedError()
 
 class HiddenLayer(object):
-    def __init__(self, rng, input, n_in, n_out, W=None, b=None,
+    def __init__(self, rng, input_now, input_mem, n_in, n_out, n_mem, W=None, W_m=None, b=None,
                  activation=T.tanh):
         if W is None:
             W_values = numpy.asarray(
@@ -111,29 +111,47 @@ class HiddenLayer(object):
 
             W = theano.shared(value=W_values, name='W', borrow=True)
 
+        if W_m is None:
+            W_values = numpy.asarray(
+                rng.uniform(
+                    low=-numpy.sqrt(6. / (n_in + n_out)),
+                    high=numpy.sqrt(6. / (n_in + n_out)),
+                    size=(n_in, n_mem)
+                ),
+                dtype=theano.config.floatX
+            )
+            if activation == theano.tensor.nnet.sigmoid:
+                W_values *= 4
+
+            W_m = theano.shared(value=W_values, name='W_m', borrow=True)
+
         if b is None:
             b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
             b = theano.shared(value=b_values, name='b', borrow=True)
 
         self.W = W
+        self.W_m = W_m
         self.b = b
-
-        lin_output = T.dot(input, self.W) + self.b
+        
+        lin_output = T.dot(input_now, self.W) + T.sum(input_mem.T * self.W_m,axis=1) + self.b
         self.output = (
             lin_output if activation is None
             else activation(lin_output)
         )
         # parameters of the model
-        self.params = [self.W, self.b]
+        self.params = [self.W, self.W_m, self.b]
 
+        
 
 # start-snippet-2
 class MLP(object):
-    def __init__(self, rng, input, n_in, n_hidden, n_out):
+    def __init__(self, rng, input_now, input_mem, n_in, n_mem, n_hidden, n_out):
         self.hiddenLayer = HiddenLayer(
             rng=rng,
-            input=input,
+            input_now=input_now,
+            input_mem=input_mem,
             n_in=n_in,
+            n_mem=n_mem,
             n_out=n_hidden,
             activation=T.tanh
         )
@@ -177,9 +195,15 @@ def sample(num = 100):
     return x_in,y_out
 
 def load_data():
-    train_set = sample(1000)
-    valid_set = sample(500)
-    print(train_set)
+    x_in = np.load("train.npy")
+    y_out = np.load("valid.npy")
+    train_set = (x_in,y_out)
+    x_in = np.load("train_1.npy")
+    y_out = np.load("valid_1.npy")
+    valid_set = (x_in,y_out) 
+    
+#    train_set = sample(1000)
+#    valid_set = sample(1000)
 
     def shared_dataset(data_xy, borrow=True):
         data_x,data_y = data_xy
@@ -197,8 +221,9 @@ def load_data():
     samples = [(train_set_x, train_set_y), (valid_set_x, valid_set_y)]
     return samples
 
+
 def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
-             n_in=100, batch_size=20,n_hidden=10):
+             n_in=10, n_mem=4, batch_size=1,n_hidden=10):
 
     datasets = load_data()
 
@@ -213,16 +238,20 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
     index = T.lscalar()  # index to a [mini]batch
     x = T.matrix('x')  # the data is presented as rasterized images
+    x_mem = T.matrix('x_mem')  # the data is presented as rasterized images
     y = T.ivector('y')  # the labels are presented as 1D vector of
                         # [int] labels
+   
 
     rng = numpy.random.RandomState(1234)
 
     classifier = MLP(
         rng=rng,
-        input=x,
+        input_now=x,
+        input_mem=x_mem,
         n_in=n_in,
         n_hidden=n_hidden,
+        n_mem = 4,
         n_out=2
     )
 
@@ -237,6 +266,7 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
         outputs=classifier.errors(y),
         givens={
             x: valid_set_x[index * batch_size:(index + 1) * batch_size],
+            x_mem: valid_set_x[index * batch_size - n_mem:index * batch_size],
             y: valid_set_y[index * batch_size:(index + 1) * batch_size]
         }
     )
@@ -254,6 +284,7 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
         updates=updates,
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size],
+            x_mem: train_set_x[index * batch_size - n_mem: index * batch_size],
             y: train_set_y[index * batch_size: (index + 1) * batch_size]
         }
     )
@@ -284,36 +315,28 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     epoch = 0
     done_looping = False
 
-    last = np.zeros((100,n_hidden))
-    last2 = np.zeros((100,n_hidden))
-    base = np.zeros((100,n_hidden))
-
     while (epoch < n_epochs) and (not done_looping):
         epoch = epoch + 1
-        for minibatch_index in range(n_train_batches):
-
+        for minibatch_index in range(n_mem,n_train_batches):
+ 
+           # res = train_set_x[minibatch_index * batch_size - n_mem: (minibatch_index ) * batch_size ]
+           # print(res.eval().shape) 
             minibatch_avg_cost = train_model(minibatch_index)
-            #m = train_set_x[minibatch_index * batch_size: (minibatch_index + 1) * batch_size]
-            #print(m.eval().shape)
-            #res = classifier.params[0].get_value()
-            #misc.imsave("/Users/ZJY/workHub/weight/%s_%s.png"%(epoch,minibatch_index),res)
-            #print(classifier.params[0].get_value()[0])
+           # print(minibatch_avg_cost)
+
 
             # iteration number
-            iter = (epoch - 1) * n_train_batches + minibatch_index
+            iter = (epoch - 1) * (n_train_batches) + minibatch_index 
+             
 
-            if (iter + 1) % validation_frequency == 0:
+            if (iter + 1) % (validation_frequency) == 0:
+           
                 # compute zero-one loss on validation set
+                res = valid_set_x[index * batch_size - n_mem:index * batch_size],
                 validation_losses = [validate_model(i) for i
-                                     in range(n_valid_batches)]
+                                     in range(n_mem,n_valid_batches)]
                 this_validation_loss = numpy.mean(validation_losses)
 
-                res = classifier.params[0].get_value()
-                base += np.abs(res - last) - np.abs(last - last2)
-                print(np.max(base))
-                last2 = last
-                last = res
-                plt.imsave("/Users/ZJY/workHub/weight/%s_%s.png"%(epoch,minibatch_index),res)
                 print(
                     'epoch %i, minibatch %i/%i, validation error %f %%' %
                     (
@@ -338,11 +361,10 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
 
             if patience <= iter:
+                print("No patience")
                 done_looping = True
                 break
 
-    plt.imsave("/Users/ZJY/workHub/weight/change.png",base)
-    numpy.save("/Users/ZJY/workHub/weight/base.npy",base)
     end_time = timeit.default_timer()
     print(('Optimization complete. Best validation score of %f %% '
            'obtained at iteration %i, with test performance %f %%') %
