@@ -222,6 +222,7 @@ def load_data(dataset):
     # the number of rows in the input. It should give the target
     # to the example with the same index in the input.
 
+
     def shared_dataset(data_xy, borrow=True):
         """ Function that loads the dataset into shared variables
 
@@ -246,6 +247,8 @@ def load_data(dataset):
         # ``shared_y`` we will have to cast it to int. This little hack
         # lets ous get around this issue
         return shared_x, T.cast(shared_y, 'int32')
+    
+    
 
     test_set_x, test_set_y = shared_dataset(test_set)
     valid_set_x, valid_set_y = shared_dataset(valid_set)
