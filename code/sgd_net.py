@@ -31,6 +31,7 @@ import gzip
 import pickle
 
 import numpy
+import numpy as np
 import cPickle
 
 import theano
@@ -91,46 +92,6 @@ def load_data(dataset):
 class HiddenLayer(object):
     def __init__(self, rng, input, n_in, n_out, W=None, b=None,
                  activation=T.tanh):
-        """
-        Typical hidden layer of a MLP: units are fully-connected and have
-        sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
-        and the bias vector b is of shape (n_out,).
-
-        NOTE : The nonlinearity used here is tanh
-
-        Hidden unit activation is given by: tanh(dot(input,W) + b)
-
-        :type rng: numpy.random.RandomState
-        :param rng: a random number generator used to initialize weights
-
-        :type input: theano.tensor.dmatrix
-        :param input: a symbolic tensor of shape (n_examples, n_in)
-
-        :type n_in: int
-        :param n_in: dimensionality of input
-
-        :type n_out: int
-        :param n_out: number of hidden units
-
-        :type activation: theano.Op or function
-        :param activation: Non linearity to be applied in the hidden
-                           layer
-        """
-        self.input = input
-        # end-snippet-1
-
-        # `W` is initialized with `W_values` which is uniformely sampled
-        # from sqrt(-6./(n_in+n_hidden)) and sqrt(6./(n_in+n_hidden))
-        # for tanh activation function
-        # the output of uniform if converted using asarray to dtype
-        # theano.config.floatX so that the code is runable on GPU
-        # Note : optimal initialization of weights is dependent on the
-        #        activation function used (among other things).
-        #        For example, results presented in [Xavier10] suggest that you
-        #        should use 4 times larger initial weights for sigmoid
-        #        compared to tanh
-        #        We have no info for other function, so we use the same as
-        #        tanh.
         if W is None:
             W_values = numpy.asarray(
                 rng.uniform(
@@ -157,9 +118,18 @@ class HiddenLayer(object):
             lin_output if activation is None
             else activation(lin_output)
         )
-        # parameters of the model
+
         self.params = [self.W, self.b]
 
+class Agent(object):
+    def __init__(self, rng, input, n_in, n_out):
+
+        self.logRegressionLayer = LogisticRegression(
+            input=input,
+            n_in=n_in,
+            n_out=n_out
+        )
+        self.errors = self.logRegressionLayer.errors
 
 # start-snippet-2
 class MLP(object):
@@ -219,10 +189,21 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     # allocate symbolic variables for the data
     index = T.lscalar()  # index to a [mini]batch
     x = T.matrix('x')  # the data is presented as rasterized images
+    x1 = T.matrix('x1')  # the data is presented as rasterized images
     y = T.ivector('y')  # the labels are presented as 1D vector of
                         # [int] labels
 
     rng = numpy.random.RandomState(1234)
+
+    #food = np.random.choice(input.flatten().eval(),size=(n_out,n_in))
+
+
+    agent = Agent(
+        rng=rng,
+	input=x1,
+	n_in=10,
+	n_out=30
+    ) 
 
     # construct the MLP class
     classifier = MLP(
@@ -246,6 +227,15 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
     # compiling a Theano function that computes the mistakes that are made
     # by the model on a minibatch
+    run_agent = theano.function(
+        inputs=[index],
+        outputs=agent.errors(y),
+        givens={
+            x1: test_set_x[index * batch_size:(index + 1) * batch_size],
+            y: test_set_y[index * batch_size:(index + 1) * batch_size]
+        }
+    )
+
     test_model = theano.function(
         inputs=[index],
         outputs=classifier.errors(y),
@@ -325,6 +315,7 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
         for minibatch_index in range(n_train_batches):
 
             minibatch_avg_cost = train_model(minibatch_index)
+	    res = run_agent(minibatch_index)
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
